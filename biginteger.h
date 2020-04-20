@@ -20,25 +20,26 @@ private:
             return 0;
     }
 
-    static BigInteger simpleMult(const BigInteger& first, const BigInteger& second){
+    BigInteger& simpleMult(const BigInteger& second){
         BigInteger res;
-        if((first.digit(0) == 0 && first.size() <= 1) || (second.digit(0) == 0 && second.size() <= 1)){
-            res = 0;
-            return res;
+        if((digit(0) == 0 && size() <= 1) || (second.digit(0) == 0 && second.size() <= 1)){
+            *this = 0;
+            return *this;
         }
-        res.isNegative = first.isNegative ^ second.isNegative;
+        res.isNegative = isNegative ^ second.isNegative;
         int mem = 0;
         for(int i = 0; i < second.size(); ++i){
-            for(int j = 0; j < first.size() || mem > 0; ++j){
+            for(int j = 0; j < size() || mem > 0; ++j){
                 if(res.size() <= i + j){
                     res.num.push_back(0);
                 }
-                res.num[i + j] += first.digit(j) * second.digit(i) + mem;
+                res.num[i + j] += digit(j) * second.digit(i) + mem;
                 mem = res.num[i + j] / base;
                 res.num[i + j] %= base;
             }
         }
-        return res;
+        *this = res;
+        return *this;
     }
 
     BigInteger devide(){
@@ -244,12 +245,83 @@ public:
     friend bool operator < (const BigInteger& first, const BigInteger& second);
     friend bool operator < (const int& a1, const BigInteger& second);
     friend bool operator < (const BigInteger& first, const int& a1);
-    friend BigInteger operator * (const BigInteger& a1, const BigInteger& b1);
     friend BigInteger operator / (const BigInteger& first, const BigInteger& second);
 
-    BigInteger& operator *=(const BigInteger& first){
-        *this = (*this) * first;
-        return *this;
+    BigInteger& operator *=(const BigInteger& b1){
+      int len = std::max(size(), b1.size());
+      BigInteger first = abs();
+      BigInteger second = b1.abs();
+      if (len <= 4) {
+        return BigInteger::simpleMult(b1);
+      }
+
+      int k = (len + 1) / 2;
+
+      BigInteger aL;
+      aL.isNegative = false;
+      BigInteger aR = 0;
+      if(first.size() < k){
+        aL.num.resize(first.num.end() - first.num.begin());
+        std::copy(first.num.begin(), first.num.end(), aL.num.begin());
+      } else {
+        aL.num.resize(k);
+        aR.num.resize(first.num.end() - first.num.begin() - k);
+        std::copy(first.num.begin(), first.num.begin() + k, aL.num.begin());
+        std::copy(first.num.begin() + k, first.num.end(), aR.num.begin());
+      }
+
+      BigInteger bL;
+      bL.isNegative = false;
+      BigInteger bR = 0;
+      if(second.size() < k){
+        bL.num.resize(second.num.end() - second.num.begin());
+        std::copy(second.num.begin(), second.num.end(), bL.num.begin());
+      } else {
+        bL.num.resize(k);
+        bR.num.resize(second.num.end() - second.num.begin() - k);
+        std::copy(second.num.begin(), second.num.begin() + k, bL.num.begin());
+        std::copy(second.num.begin() + k, second.num.end(), bR.num.begin());
+      }
+
+      BigInteger aLR = aL;
+      aLR += aR;
+      BigInteger bLR = bL;
+      bLR += bR;
+
+      BigInteger res1 = aL;
+      res1 *= bL;
+      BigInteger res2 = aR;
+      res2 *= bR;
+      BigInteger res3 = aLR;
+      res3 *= bLR;
+      res3  -= res1;
+      res3  -= res2;
+
+      num.resize(4 * k);
+      for (int i = 0; i < 2 * k; ++i) {
+        num[i] = res1.digit(i);
+      }
+
+      for (int i = 0; i < 2 * k ; ++i) {
+        num[i + 2 * k] = res2.digit(i);
+      }
+
+      for (int i = 0; i < 2 * k + 1; ++i) {
+        num[i + k] += res3.digit(i);
+      }
+
+      num.push_back(0);
+      for(int i = 0; i < 2*len; ++i){
+        num[i + 1] += num[i] / BigInteger::base;
+        num[i] %= BigInteger::base;
+      }
+
+      while (size() > 1 && digit(size() - 1) == 0)
+        num.erase(num.begin() + (size() - 1));
+
+      isNegative ^= b1.isNegative;
+      forZerocase();
+      return *this;
     }
 
     BigInteger& operator /=(const BigInteger& first){
@@ -259,7 +331,9 @@ public:
 
     BigInteger& operator %=(const BigInteger& first){
         BigInteger second = (*this / first);
-        *this -= second * first;
+        BigInteger d = second;
+        d *= first;
+        *this -= d;
         return *this;
     }
 
@@ -306,74 +380,9 @@ BigInteger operator - (const BigInteger& first, const int& second){
 }
 
 BigInteger operator * (const BigInteger& a1, const BigInteger& b1) {
-    int len = std::max(a1.size(), b1.size());
-    BigInteger res;
-    res.isNegative = a1.isNegative^b1.isNegative;
-    BigInteger first = a1.abs();
-    BigInteger second = b1.abs();
-    if (len <= 4) {
-        return BigInteger::simpleMult(a1, b1);
-    }
-
-    int k = (len + 1) / 2;
-
-    BigInteger aL;
-    aL.isNegative = false;
-    BigInteger aR = 0;
-    if(first.size() < k){
-        aL.num.resize(first.num.end() - first.num.begin());
-        std::copy(first.num.begin(), first.num.end(), aL.num.begin());
-    } else {
-        aL.num.resize(k);
-        aR.num.resize(first.num.end() - first.num.begin() - k);
-        std::copy(first.num.begin(), first.num.begin() + k, aL.num.begin());
-        std::copy(first.num.begin() + k, first.num.end(), aR.num.begin());
-    }
-
-    BigInteger bL;
-    bL.isNegative = false;
-    BigInteger bR = 0;
-    if(second.size() < k){
-        bL.num.resize(second.num.end() - second.num.begin());
-        std::copy(second.num.begin(), second.num.end(), bL.num.begin());
-    } else {
-        bL.num.resize(k);
-        bR.num.resize(second.num.end() - second.num.begin() - k);
-        std::copy(second.num.begin(), second.num.begin() + k, bL.num.begin());
-        std::copy(second.num.begin() + k, second.num.end(), bR.num.begin());
-    }
-
-    BigInteger aLR = aL + aR;
-    BigInteger bLR = bL + bR;
-
-    BigInteger res1 = aL * bL;
-    BigInteger res2 = aR * bR;
-    BigInteger res3 = aLR * bLR - res1 - res2;
-
-    res.num.resize(4 * k);
-    for (int i = 0; i < 2 * k; ++i) {
-        res.num[i] = res1.digit(i);
-    }
-
-    for (int i = 0; i < 2 * k ; ++i) {
-        res.num[i + 2 * k] = res2.digit(i);
-    }
-
-    for (int i = 0; i < 2 * k + 1; ++i) {
-        res.num[i + k] += res3.digit(i);
-    }
-
-    res.num.push_back(0);
-    for(int i = 0; i < 2*len; ++i){
-        res.num[i + 1] += res.num[i] / BigInteger::base;
-        res.num[i] %= BigInteger::base;
-    }
-
-    while (res.size() > 1 && res.digit(res.size() - 1) == 0)
-        res.num.erase(res.num.begin() + (res.size() - 1));
-
-    res.forZerocase();
-    return res;
+  BigInteger res = a1;
+  res *= b1;
+  return res;
 }
 
 BigInteger operator % (const BigInteger& first, const BigInteger& second){
@@ -562,7 +571,6 @@ BigInteger operator / (const BigInteger& first, const BigInteger& second){
         return result;
     }
 }
-
 
 
 class Rational{
