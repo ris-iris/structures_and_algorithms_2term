@@ -25,7 +25,7 @@ class Dsu {
   std::vector<int> par;
   std::vector<int> r;
  public:
-  void make_set(int v) {
+  void makeSet(int v) {
     par[v] = v;
     r[v] = 0;
   }
@@ -34,20 +34,20 @@ class Dsu {
     par.reserve(n);
     r.reserve(n);
     for (int i = 0; i < n; ++i) {
-      make_set(i);
+      makeSet(i);
     }
   }
 
-  int find_set(int v) {
+  int findSet(int v) {
     if (v == par[v])
       return v;
-    par[v] = find_set(par[v]);
+    par[v] = findSet(par[v]);
     return par[v];
   }
 
-  void union_sets(int a, int b) {
-    a = find_set(a);
-    b = find_set(b);
+  void unionSets(int a, int b) {
+    a = findSet(a);
+    b = findSet(b);
     if (a != b) {
       if (r[a] < r[b])
         std::swap(a, b);
@@ -76,9 +76,9 @@ long long mstWeight(int n, std::priority_queue<Edge, std::vector<Edge>, Comp> &e
   while (!edges.empty()){
     Edge temp = edges.top();
     edges.pop();
-    if(trees.find_set(temp.finish) != trees.find_set(temp.start)){
+    if(trees.findSet(temp.finish) != trees.findSet(temp.start)){
       ans += temp.w;
-      trees.union_sets(trees.find_set(temp.finish), trees.find_set(temp.start));
+      trees.unionSets(trees.findSet(temp.finish), trees.findSet(temp.start));
     }
   }
   return ans;
